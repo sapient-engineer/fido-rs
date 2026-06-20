@@ -501,6 +501,16 @@ impl Device {
     ///
     /// PIN is required for write operations.
     ///
+    /// # Storage
+    ///
+    /// The largeBlob array is **shared across all credentials** and is very
+    /// small — typically 1024–4096 bytes total, with ~28 bytes of encryption
+    /// overhead per entry. Not suitable for sensitive data: the encryption key
+    /// is transmitted in the clear and the array can be read without user
+    /// verification. See the [CTAP 2.1 spec, §6.10][spec] for details.
+    ///
+    /// [spec]: https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-20210615.html#authenticatorLargeBlobs
+    ///
     /// **Please note that `fido_dev_largeblob_set()` is synchronous and will block if necessary.**
     pub fn largeblob_set(&self, key: &[u8], data: &[u8], pin: &str) -> Result<()> {
         let pin = CString::new(pin)?;
