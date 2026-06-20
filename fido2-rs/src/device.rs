@@ -381,19 +381,25 @@ impl Device {
 
     /// Obtain a handle to the credential management interface of a FIDO2 device.
     ///
-    /// A valid pin must be provided. If the device does not support credential management,
-    /// or an error happened, error will be returned.
+    /// If the device has a PIN set, a valid PIN must be provided as `Some(pin)`.
+    /// For devices with no PIN configured, pass `None`.
+    ///
+    /// If the device does not support credential management, or an error happened,
+    /// an error will be returned.
     ///
     /// **Pin will be kept in memory and zeroized securely when the returned CredentialManagement is dropped.**
-    pub fn credman(&self, pin: &str) -> Result<CredentialManagement<'_>> {
+    pub fn credman(&self, pin: Option<&str>) -> Result<CredentialManagement<'_>> {
         if !self.supports_credman() {
             return Err(Error::Unsupported);
         }
 
         let ptr = unsafe { ffi::fido_credman_metadata_new() };
 
-        let pin = CString::new(pin)?;
-        let pin_ptr = pin.as_ptr();
+        let pin = pin.map(CString::new).transpose()?;
+        let pin_ptr = match &pin {
+            Some(pin) => pin.as_ptr(),
+            None => std::ptr::null(),
+        };
 
         unsafe {
             check(ffi::fido_credman_get_dev_metadata(
@@ -404,7 +410,7 @@ impl Device {
         }
 
         let ptr = unsafe { NonNull::new_unchecked(ptr) };
-        let credman = CredentialManagement::new(ptr, &self, Zeroizing::new(pin));
+        let credman = CredentialManagement::new(ptr, self, pin.map(Zeroizing::new));
 
         Ok(credman)
     }
